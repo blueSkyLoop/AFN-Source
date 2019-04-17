@@ -203,13 +203,13 @@
         }
 
         // 1) Append the success and failure blocks to a pre-existing request if it already exists
-        // 去重类（防止重复下载操作，使用同一个url获取图片时，就是去同一个图片，而不会重复下载而导致浪费资源）复合操作： image url
+        // 去重类（防止重复下载操作（即：在下载过程中，后续又有多个请求在下载此图片），使用同一个url获取图片时，就是去同一个图片，而不会重复下载而导致浪费资源）复合操作： image url
         // url : 有请求记录，不需要再重新操作一次，
         // 每个image  只有一个 handler
         // merged 回调所有回调 ： merged 清空
         
         // 去重类： AFImageDownloaderMergedTask ，根据URL去取出这个 "task" 对象，如果不为nil， 证明这个图片已经被下载过了
-        // 假设，几个人要去日本买东西，如果有一个SB去了，其他人告诉这个SB需要购物的地址即可，想要的东西都由这个SB带回来，如果没人去，就创建一个SB去代购
+        // 假设，几个人要去日本买东西，如果有一个SB（去重类）去了，其他人（多个请求的 handler）告诉这个SB需要购物的地址即可，想要的东西都由这个SB带回来，如果没人去，就创建一个SB去代购
         AFImageDownloaderMergedTask *existingMergedTask = self.mergedTasks[URLIdentifier];
         if (existingMergedTask != nil) {
             AFImageDownloaderResponseHandler *handler = [[AFImageDownloaderResponseHandler alloc] initWithUUID:receiptID success:success failure:failure];
@@ -278,7 +278,7 @@
                                        // 成功，进行内存缓存
                                        [strongSelf.imageCache addImage:responseObject forRequest:request withAdditionalIdentifier:nil];
                                     
-                                       // “去重类”同一个下载地址的多次回调，防止多次请求浪费资源
+                                       // “去重类”同一个下载地址的多次回调，防止多次请求浪费资源，此循环相当于，SB 代购回来了，把所有手信派给 其他人（用handler的回调出去）
                                        for (AFImageDownloaderResponseHandler *handler in mergedTask.responseHandlers) {
                                            if (handler.successBlock) {
                                                dispatch_async(dispatch_get_main_queue(), ^{

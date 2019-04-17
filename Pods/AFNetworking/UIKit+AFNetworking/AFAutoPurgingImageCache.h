@@ -32,8 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @protocol AFImageCache <NSObject>
 
-// 增删改查
-
+#pragma mark - 增删改查
 /**
  Adds the image to the cache with the given identifier.
 

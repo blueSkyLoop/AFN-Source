@@ -106,6 +106,7 @@
         } else {
             self.image = cachedImage;
         }
+        // 已经找到缓存图片了，下载凭证也没用处，清理！
         [self clearActiveDownloadInformation];
     } else { // 没缓存，设置展位图
         if (placeholderImage) {

@@ -41,11 +41,12 @@
     if (self = [self init]) {
         self.image = image;
         self.identifier = identifier;
-
+        // 得到图片的尺寸、像素点、并计算出图片的大小
         CGSize imageSize = CGSizeMake(image.size.width * image.scale, image.size.height * image.scale);
         CGFloat bytesPerPixel = 4.0;
         CGFloat bytesPerSize = imageSize.width * imageSize.height;
         self.totalBytes = (UInt64)bytesPerPixel * (UInt64)bytesPerSize;
+        // 赋上最新使用日期
         self.lastAccessDate = [NSDate date];
     }
     return self;
@@ -114,20 +115,25 @@
     return result;
 }
 
-// 下载 图片 + id
+// 下载 图片 + id（url）
 // 缓存
 - (void)addImage:(UIImage *)image withIdentifier:(NSString *)identifier {
     
     // 更新内容，更新字典，缓存
     dispatch_barrier_async(self.synchronizationQueue, ^{
+        // 1.创建一个新缓存
         AFCachedImage *cacheImage = [[AFCachedImage alloc] initWithImage:image identifier:identifier];
+        
         // 字典 kvc --> AFCachenImage --- 更新内存
+        // 2. 查找缓存是否已存在同一个 url 的缓存图片
         AFCachedImage *previousCachedImage = self.cachedImages[identifier];
         if (previousCachedImage != nil) {
+            // 找到了 旧缓存，就 “减去” 此缓存的容量
             self.currentMemoryUsage -= previousCachedImage.totalBytes;
         }
-
+        // 3. 使用 cacheImage（新缓存图片） 去覆盖 previousCachedImage（原有的缓存图片）
         self.cachedImages[identifier] = cacheImage;
+        // 4. 同时需要更新内存容量
         self.currentMemoryUsage += cacheImage.totalBytes;
     });
 
@@ -135,7 +141,7 @@
     dispatch_barrier_async(self.synchronizationQueue, ^{
         // 当前缓存 > 已设定的容量
         if (self.currentMemoryUsage > self.memoryCapacity) {
-            // 102(当前缓存) - 60（临界点） = 42（应该清理的缓存数值）
+            // 如：102(当前缓存) - 60（临界点） = 42（应该清理的缓存数值）
             UInt64 bytesToPurge = self.currentMemoryUsage - self.preferredMemoryUsageAfterPurge;
             NSMutableArray <AFCachedImage*> *sortedImages = [NSMutableArray arrayWithArray:self.cachedImages.allValues];
             
@@ -151,9 +157,9 @@
                 [self.cachedImages removeObjectForKey:cachedImage.identifier];
                 // 1.需清除内存的数值,进行叠加
                 bytesPurged += cachedImage.totalBytes;
-                // 2.进过不断叠加后，删到一定程度后，假设达到（50）；
-                // 2.1如果已删除的叠加值（50） >= 应该清理的缓存数值（上述的42）；
-                // 2.2跳出循环
+                // 2.  经过不断叠加后，删到一定程度后，假设达到（需要删除的容量==50）；
+                // 2.1 如果已删除的叠加值（50） >= 应该清理的缓存数值（上述的42）；
+                // 2.2 跳出循环z
                 if (bytesPurged >= bytesToPurge) {
                     break ;
                 }
@@ -210,6 +216,8 @@
     return [self imageWithIdentifier:[self imageCacheKeyFromURLRequest:request withAdditionalIdentifier:identifier]];
 }
 
+
+// 只是做了 key 标识的拼接
 - (NSString *)imageCacheKeyFromURLRequest:(NSURLRequest *)request withAdditionalIdentifier:(NSString *)additionalIdentifier {
     NSString *key = request.URL.absoluteString;
     if (additionalIdentifier != nil) {
